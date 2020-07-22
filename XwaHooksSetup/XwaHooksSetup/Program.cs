@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -62,9 +63,10 @@ namespace XwaHooksSetup
 
                 List<string> hooks = GetHooksList(client, XwaHooksMainReadmeUrl);
 
-                foreach (string hookName in hooks)
+                for (int hookIndex = 0; hookIndex < hooks.Count; hookIndex++)
                 {
-                    Console.WriteLine(hookName);
+                    string hookName = hooks[hookIndex];
+                    Console.WriteLine("[{0}/{1}] {2}", hookIndex + 1, hooks.Count, hookName);
 
                     string zipUrl = string.Format(XwaHooksZipUrl, hookName);
                     string filePath = HooksZipDirectory + hookName + ".zip";
@@ -130,41 +132,94 @@ namespace XwaHooksSetup
             Directory.CreateDirectory(HooksSetupDirectory);
             Directory.CreateDirectory(HooksSetupDirectory + @"Examples\");
 
-            foreach (string hookPath in Directory.EnumerateFiles(HooksZipDirectory, "xwa_hook_*.zip"))
+            List<string> hookPaths = Directory.EnumerateFiles(HooksZipDirectory, "xwa_hook_*.zip").ToList();
+
+            using (var readmeFile = new FileStream(HooksSetupDirectory + "Hooks_Readme.txt", FileMode.Create, FileAccess.Write))
+            using (var configFile = new FileStream(HooksSetupDirectory + "Hooks.ini", FileMode.Create, FileAccess.Write))
             {
-                string hookName = Path.GetFileNameWithoutExtension(hookPath);
-                Console.WriteLine(hookName);
+                readmeFile.WriteText("XWA Hooks Readme\n");
+                readmeFile.WriteText("This file contains the readme files for the hooks.\n");
+                readmeFile.WriteText("\n");
 
-                using (var archiveFile = File.OpenRead(hookPath))
-                using (var archive = new ZipArchive(archiveFile, ZipArchiveMode.Read))
+                for (int hookIndex = 0; hookIndex < hookPaths.Count; hookIndex++)
                 {
-                    string examplesDirectory = HooksSetupDirectory + @"Examples\" + GetFormattedFileName(hookName) + @"\";
-                    Directory.CreateDirectory(examplesDirectory);
+                    string hookPath = hookPaths[hookIndex];
+                    string hookName = Path.GetFileNameWithoutExtension(hookPath);
 
-                    foreach (var entry in archive.Entries)
+                    readmeFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] {2}\n", hookIndex + 1, hookPaths.Count, hookName));
+                }
+
+                readmeFile.WriteText("\n");
+
+                for (int hookIndex = 0; hookIndex < hookPaths.Count; hookIndex++)
+                {
+                    string hookPath = hookPaths[hookIndex];
+                    string hookName = Path.GetFileNameWithoutExtension(hookPath);
+                    Console.WriteLine("[{0}/{1}] {2}", hookIndex + 1, hookPaths.Count, hookName);
+
+                    using (var archiveFile = File.OpenRead(hookPath))
+                    using (var archive = new ZipArchive(archiveFile, ZipArchiveMode.Read))
                     {
-                        if (string.IsNullOrEmpty(entry.Name))
+                        string examplesDirectory = HooksSetupDirectory + @"Examples\" + GetFormattedFileName(hookName) + @"\";
+                        Directory.CreateDirectory(examplesDirectory);
+
+                        foreach (var entry in archive.Entries)
                         {
-                            continue;
+                            if (string.IsNullOrEmpty(entry.Name))
+                            {
+                                continue;
+                            }
+
+                            if (entry.Name == "readme.txt")
+                            {
+                                //entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(hookName + "_readme.txt"));
+
+                                readmeFile.WriteText(new string('=', 40) + "\n");
+                                readmeFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] ", hookIndex + 1, hookPaths.Count));
+
+                                using (Stream stream = entry.Open())
+                                {
+                                    stream.CopyTo(readmeFile);
+                                }
+
+                                readmeFile.WriteText("\n");
+                            }
+                            else if (entry.Name.EndsWith(".cfg"))
+                            {
+                                //entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(entry.Name));
+
+                                configFile.WriteText("[" + Path.GetFileNameWithoutExtension(entry.Name) + "]\n");
+
+                                using (Stream stream = entry.Open())
+                                {
+                                    stream.CopyTo(configFile);
+                                }
+
+                                configFile.WriteText("\n");
+                            }
+                            else if (entry.Name.EndsWith(".dll"))
+                            {
+                                entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(entry.Name));
+                            }
+                            else
+                            {
+                                if (entry.FullName.StartsWith("Examples/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    entry.CopyTo(examplesDirectory + GetFormattedFileName(entry.Name));
+                                }
+                                else
+                                {
+                                    string path = examplesDirectory + GetFormattedFileName(entry.FullName);
+                                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                                    entry.CopyTo(path);
+                                }
+                            }
                         }
 
-                        if (entry.Name == "readme.txt")
+                        if (Directory.EnumerateFiles(examplesDirectory).FirstOrDefault() == null)
                         {
-                            entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(hookName + "_readme.txt"));
+                            Directory.Delete(examplesDirectory);
                         }
-                        else if (entry.Name.EndsWith(".dll") || entry.Name.EndsWith(".cfg"))
-                        {
-                            entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(entry.Name));
-                        }
-                        else
-                        {
-                            entry.CopyTo(examplesDirectory + GetFormattedFileName(entry.Name));
-                        }
-                    }
-
-                    if (Directory.EnumerateFiles(examplesDirectory).FirstOrDefault() == null)
-                    {
-                        Directory.Delete(examplesDirectory);
                     }
                 }
             }
