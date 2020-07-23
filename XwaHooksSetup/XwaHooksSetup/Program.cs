@@ -132,7 +132,18 @@ namespace XwaHooksSetup
             Directory.CreateDirectory(HooksSetupDirectory);
             Directory.CreateDirectory(HooksSetupDirectory + @"Examples\");
 
-            List<string> hookPaths = Directory.EnumerateFiles(HooksZipDirectory, "xwa_hook_*.zip").ToList();
+            List<string> hookPaths = Directory
+                .EnumerateFiles(HooksZipDirectory, "xwa_hook_*.zip")
+                .ToList()
+                .Select(t => new
+                {
+                    IsTop = Path.GetFileName(t).StartsWith("xwa_hook_main", StringComparison.OrdinalIgnoreCase),
+                    Path = t
+                })
+                .OrderByDescending(t => t.IsTop)
+                .ThenBy(t => t.Path)
+                .Select(t => t.Path)
+                .ToList();
 
             using (var readmeFile = new FileStream(HooksSetupDirectory + "Hooks_Readme.txt", FileMode.Create, FileAccess.Write))
             using (var configFile = new FileStream(HooksSetupDirectory + "Hooks.ini", FileMode.Create, FileAccess.Write))
@@ -192,6 +203,22 @@ namespace XwaHooksSetup
 
                                 using (Stream stream = entry.Open())
                                 {
+                                    while (true)
+                                    {
+                                        int b = stream.ReadByte();
+
+                                        if (b == -1)
+                                        {
+                                            break;
+                                        }
+
+                                        if (b != '\r' && b != '\n')
+                                        {
+                                            configFile.WriteByte((byte)b);
+                                            break;
+                                        }
+                                    }
+
                                     stream.CopyTo(configFile);
                                 }
 
