@@ -224,7 +224,9 @@ namespace XwaHooksSetup
 
                                 configFile.WriteText("\n");
                             }
-                            else if (entry.Name.EndsWith(".dll"))
+                            else if (entry.Name.EndsWith(".dll")
+                                || entry.Name.EndsWith(".exe")
+                                || entry.Name.EndsWith(".exe.config"))
                             {
                                 entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(entry.Name));
                             }
