@@ -16,6 +16,7 @@ namespace XwaHooksSetup
         const string XwaHooksZipUrl = @"https://github.com/JeremyAnsel/xwa_hooks/raw/master/{0}/zip/{0}.zip";
 
         const string HooksZipDirectory = @"Hooks\";
+        const string HooksWipZipDirectory = @"Hooks_WIP\";
         const string HooksSetupDirectory = @"Setup\";
 
         static void Main(string[] args)
@@ -28,6 +29,11 @@ namespace XwaHooksSetup
                 if (!Directory.Exists(HooksZipDirectory))
                 {
                     DownloadHooks();
+                }
+
+                if (!Directory.Exists(HooksWipZipDirectory))
+                {
+                    DownloadHooksWip();
                 }
 
                 SetupHooks();
@@ -100,6 +106,61 @@ namespace XwaHooksSetup
                     }
 
                     string hookName = line.Substring(3);
+                    list.Add(hookName);
+                }
+            }
+
+            return list;
+        }
+
+        static void DownloadHooksWip()
+        {
+            Console.WriteLine("Download Hooks WIP");
+            Directory.CreateDirectory(HooksWipZipDirectory);
+
+            using (var client = new WebClient())
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                List<string> hooks = GetHooksWipList(client, XwaHooksMainReadmeUrl);
+
+                for (int hookIndex = 0; hookIndex < hooks.Count; hookIndex++)
+                {
+                    string hookName = hooks[hookIndex];
+                    Console.WriteLine("[{0}/{1}] WIP {2}", hookIndex + 1, hooks.Count, hookName);
+
+                    string zipUrl = string.Format(XwaHooksZipUrl, hookName);
+                    string filePath = HooksWipZipDirectory + hookName + ".zip";
+                    client.DownloadFile(zipUrl, filePath);
+                    UpdateZipLastWriteTime(filePath);
+                }
+            }
+
+            Console.WriteLine();
+        }
+
+        static List<string> GetHooksWipList(WebClient client, string url)
+        {
+            var list = new List<string>();
+
+            string mainReadme = client.DownloadString(url);
+
+            if (string.IsNullOrEmpty(mainReadme))
+            {
+                return list;
+            }
+
+            using (var reader = new StringReader(mainReadme))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (!line.StartsWith("## WIP xwa_hook_"))
+                    {
+                        continue;
+                    }
+
+                    string hookName = line.Substring(7);
                     list.Add(hookName);
                 }
             }
