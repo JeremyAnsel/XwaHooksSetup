@@ -206,9 +206,14 @@ namespace XwaHooksSetup
                 .Select(t => t.Path)
                 .ToList();
 
+            using (var setupFile = new FileStream(HooksSetupDirectory + "Hooks_Setup.txt", FileMode.Create, FileAccess.Write))
             using (var readmeFile = new FileStream(HooksSetupDirectory + "Hooks_Readme.txt", FileMode.Create, FileAccess.Write))
             using (var configFile = new FileStream(HooksSetupDirectory + "Hooks.ini", FileMode.Create, FileAccess.Write))
             {
+                setupFile.WriteText("XWA Hooks Setup\n");
+                setupFile.WriteText("This file contains the setup sections of the readme files for the hooks.\n");
+                setupFile.WriteText("\n");
+
                 readmeFile.WriteText("XWA Hooks Readme\n");
                 readmeFile.WriteText("This file contains the readme files for the hooks.\n");
                 readmeFile.WriteText("\n");
@@ -218,9 +223,11 @@ namespace XwaHooksSetup
                     string hookPath = hookPaths[hookIndex];
                     string hookName = Path.GetFileNameWithoutExtension(hookPath);
 
+                    setupFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] {2}\n", hookIndex + 1, hookPaths.Count, hookName));
                     readmeFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] {2}\n", hookIndex + 1, hookPaths.Count, hookName));
                 }
 
+                setupFile.WriteText("\n");
                 readmeFile.WriteText("\n");
 
                 for (int hookIndex = 0; hookIndex < hookPaths.Count; hookIndex++)
@@ -246,14 +253,48 @@ namespace XwaHooksSetup
                             {
                                 //entry.CopyTo(HooksSetupDirectory + GetFormattedFileName(hookName + "_readme.txt"));
 
-                                readmeFile.WriteText(new string('=', 40) + "\n");
-                                readmeFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] ", hookIndex + 1, hookPaths.Count));
+                                Dictionary<string, string> sections;
 
                                 using (Stream stream = entry.Open())
                                 {
-                                    stream.CopyTo(readmeFile);
+                                    //stream.CopyTo(readmeFile);
+                                    sections = stream.ReadDictionary();
                                 }
 
+                                setupFile.WriteText(new string('=', 40) + "\n");
+                                setupFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] ", hookIndex + 1, hookPaths.Count));
+
+                                readmeFile.WriteText(new string('=', 40) + "\n");
+                                readmeFile.WriteText(string.Format(CultureInfo.InvariantCulture, "[{0}/{1}] ", hookIndex + 1, hookPaths.Count));
+
+                                foreach (KeyValuePair<string, string> section in sections)
+                                {
+                                    if (string.IsNullOrEmpty(section.Key))
+                                    {
+                                        setupFile.WriteText(section.Value);
+                                        readmeFile.WriteText(section.Value);
+                                    }
+                                    else if (section.Key.Equals("*** Setup ***", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        setupFile.WriteText(section.Key + "\n");
+                                        setupFile.WriteText(section.Value);
+
+                                        readmeFile.WriteText(section.Key + "\n");
+                                        readmeFile.WriteText(section.Value);
+                                    }
+                                    else if (section.Key.Equals("*** Usage ***", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        readmeFile.WriteText(section.Key + "\n");
+                                        readmeFile.WriteText(section.Value);
+                                    }
+                                    else
+                                    {
+                                        setupFile.WriteText(section.Key + "\n");
+                                        setupFile.WriteText(section.Value);
+                                    }
+                                }
+
+                                setupFile.WriteText("\n");
                                 readmeFile.WriteText("\n");
                             }
                             else if (entry.Name.EndsWith(".cfg"))
