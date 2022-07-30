@@ -347,7 +347,7 @@ namespace XwaHooksSetup
                             }
                         }
 
-                        if (Directory.EnumerateFiles(examplesDirectory).FirstOrDefault() == null)
+                        if (Directory.EnumerateFiles(examplesDirectory, "*", SearchOption.AllDirectories).FirstOrDefault() == null)
                         {
                             Directory.Delete(examplesDirectory);
                         }
