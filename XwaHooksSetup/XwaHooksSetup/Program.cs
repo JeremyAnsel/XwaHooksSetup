@@ -26,16 +26,9 @@ namespace XwaHooksSetup
                 Console.WriteLine("XwaHooksSetup");
                 Console.WriteLine();
 
-                if (!Directory.Exists(HooksZipDirectory))
-                {
-                    DownloadHooks();
-                }
-
-                if (!Directory.Exists(HooksWipZipDirectory))
-                {
-                    DownloadHooksWip();
-                }
-
+                DeleteHooksDirectories();
+                DownloadHooks();
+                DownloadHooksWip();
                 SetupHooks();
 
                 Console.WriteLine("END");
@@ -43,6 +36,24 @@ namespace XwaHooksSetup
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+            }
+        }
+
+        static void DeleteHooksDirectories()
+        {
+            if (Directory.Exists(HooksZipDirectory))
+            {
+                Directory.Delete(HooksZipDirectory, true);
+            }
+
+            if (Directory.Exists(HooksWipZipDirectory))
+            {
+                Directory.Delete(HooksWipZipDirectory, true);
+            }
+
+            if (Directory.Exists(HooksSetupDirectory))
+            {
+                Directory.Delete(HooksSetupDirectory, true);
             }
         }
 
@@ -184,12 +195,6 @@ namespace XwaHooksSetup
         static void SetupHooks()
         {
             Console.WriteLine("Setup Hooks");
-
-            if (Directory.Exists(HooksSetupDirectory))
-            {
-                Directory.Delete(HooksSetupDirectory, true);
-            }
-
             Directory.CreateDirectory(HooksSetupDirectory);
             Directory.CreateDirectory(HooksSetupDirectory + @"Examples\");
 
