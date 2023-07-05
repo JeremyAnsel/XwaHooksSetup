@@ -12,6 +12,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="JeremyAnsel.Xwa.HooksConfig" Version="1.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="System.IO.Compression" />
   </ItemGroup>
 

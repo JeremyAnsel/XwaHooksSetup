@@ -1,5 +1,7 @@
-﻿using System;
+﻿using JeremyAnsel.Xwa.HooksConfig;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -12,6 +14,8 @@ namespace XwaHooksSetup
 {
     class Program
     {
+        const string XwaHooksSetupUrl = @"https://github.com/JeremyAnsel/XwaHooksSetup/raw/master/XwaHooksSetup/zip/XwaHooksSetup.zip";
+
         const string XwaHooksMainReadmeUrl = @"https://raw.githubusercontent.com/JeremyAnsel/xwa_hooks/master/README.md";
         const string XwaHooksZipUrl = @"https://github.com/JeremyAnsel/xwa_hooks/raw/master/{0}/zip/{0}.zip";
 
@@ -26,10 +30,13 @@ namespace XwaHooksSetup
                 Console.WriteLine("XwaHooksSetup");
                 Console.WriteLine();
 
+                SetWorkingDirectory();
+                SelfUpdate();
                 DeleteHooksDirectories();
                 DownloadHooks();
                 DownloadHooksWip();
                 SetupHooks();
+                UpdateHooks();
 
                 Console.WriteLine("END");
             }
@@ -37,6 +44,71 @@ namespace XwaHooksSetup
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        static void SetWorkingDirectory()
+        {
+            using var process = Process.GetCurrentProcess();
+            using var module = process.MainModule;
+            string path = module.FileName;
+            string directory = Path.GetDirectoryName(path);
+            Directory.SetCurrentDirectory(directory);
+        }
+
+        static void SelfUpdate()
+        {
+            if (Path.GetFileName(Directory.GetCurrentDirectory()).IndexOf("_wip_", StringComparison.OrdinalIgnoreCase) != -1)
+            {
+                return;
+            }
+
+            if (File.Exists("XwaHooksSetup.bak"))
+            {
+                File.Delete("XwaHooksSetup.bak");
+                return;
+            }
+
+            Console.WriteLine("Self Update");
+            Console.WriteLine();
+
+            File.Delete("XwaHooksSetup.zip");
+
+            using (var client = new WebClient())
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                client.DownloadFile(XwaHooksSetupUrl, "XwaHooksSetup.zip");
+                UpdateZipLastWriteTime("XwaHooksSetup.zip");
+            }
+
+            File.Delete("XwaHooksSetup.bak");
+            File.Move("XwaHooksSetup.exe", "XwaHooksSetup.bak");
+
+            foreach (string file in Directory.EnumerateFiles("."))
+            {
+                string extension = Path.GetExtension(file);
+
+                if (string.Equals(extension, ".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (string.Equals(extension, ".bak", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                File.Delete(file);
+            }
+
+            ZipFile.ExtractToDirectory("XwaHooksSetup.zip", ".");
+
+            using (var process = Process.GetCurrentProcess())
+            {
+                Process.Start(process.MainModule.FileName, process.StartInfo.Arguments);
+            }
+
+            Environment.Exit(0);
         }
 
         static void DeleteHooksDirectories()
@@ -196,7 +268,7 @@ namespace XwaHooksSetup
         {
             Console.WriteLine("Setup Hooks");
             Directory.CreateDirectory(HooksSetupDirectory);
-            Directory.CreateDirectory(HooksSetupDirectory + @"Examples\");
+            //Directory.CreateDirectory(HooksSetupDirectory + @"Examples\");
 
             List<string> hookPaths = Directory
                 .EnumerateFiles(HooksZipDirectory, "xwa_hook_*.zip")
@@ -244,8 +316,8 @@ namespace XwaHooksSetup
                     using (var archiveFile = File.OpenRead(hookPath))
                     using (var archive = new ZipArchive(archiveFile, ZipArchiveMode.Read))
                     {
-                        string examplesDirectory = HooksSetupDirectory + @"Examples\" + GetFormattedFileName(hookName) + @"\";
-                        Directory.CreateDirectory(examplesDirectory);
+                        //string examplesDirectory = HooksSetupDirectory + @"Examples\" + GetFormattedFileName(hookName) + @"\";
+                        //Directory.CreateDirectory(examplesDirectory);
 
                         foreach (var entry in archive.Entries)
                         {
@@ -339,25 +411,106 @@ namespace XwaHooksSetup
                             }
                             else
                             {
-                                if (entry.FullName.StartsWith("Examples/", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    entry.CopyTo(examplesDirectory + GetFormattedFileName(entry.Name));
-                                }
-                                else
-                                {
-                                    string path = examplesDirectory + GetFormattedFileName(entry.FullName);
-                                    Directory.CreateDirectory(Path.GetDirectoryName(path));
-                                    entry.CopyTo(path);
-                                }
+                                //if (entry.FullName.StartsWith("Examples/", StringComparison.OrdinalIgnoreCase))
+                                //{
+                                //    entry.CopyTo(examplesDirectory + GetFormattedFileName(entry.Name));
+                                //}
+                                //else
+                                //{
+                                //    string path = examplesDirectory + GetFormattedFileName(entry.FullName);
+                                //    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                                //    entry.CopyTo(path);
+                                //}
                             }
                         }
 
-                        if (Directory.EnumerateFiles(examplesDirectory, "*", SearchOption.AllDirectories).FirstOrDefault() == null)
-                        {
-                            Directory.Delete(examplesDirectory);
-                        }
+                        //if (Directory.EnumerateFiles(examplesDirectory, "*", SearchOption.AllDirectories).FirstOrDefault() == null)
+                        //{
+                        //    Directory.Delete(examplesDirectory);
+                        //}
                     }
                 }
+            }
+
+            Console.WriteLine();
+        }
+
+        static void UpdateHooks()
+        {
+            if (!File.Exists(@"..\XWingAlliance.exe") || !File.Exists(@"..\Hooks.ini"))
+            {
+                return;
+            }
+
+            Console.WriteLine("Update Hooks.ini");
+
+            var currentHooksIni = new XwaIniFile(@"..\Hooks.ini");
+            currentHooksIni.ParseIni();
+            currentHooksIni.ParseSettings();
+
+            var newHooksIni = new XwaIniFile(@"Setup\Hooks.ini");
+            newHooksIni.ParseIni();
+
+            foreach (var currentSection in currentHooksIni.Sections)
+            {
+                string sectionKey = currentSection.Key;
+                XwaIniSection section = currentSection.Value;
+
+                Console.WriteLine($"[{sectionKey}]");
+
+                newHooksIni.CreateSectionIfNotExists(sectionKey);
+                XwaIniSection newSection = newHooksIni.Sections[sectionKey];
+
+                var keys = section.GetSettingKeys();
+
+                foreach (string key in keys)
+                {
+                    string value = section.GetKeyValueInSettings(key);
+
+                    newSection.SetKeyValueInLines(key, value);
+                }
+            }
+
+            newHooksIni.Save();
+            Console.WriteLine();
+
+            Console.WriteLine("Update Hooks");
+            File.Copy(@"Setup\Hooks.ini", @"..\Hooks.ini", true);
+
+            foreach (string file in Directory.EnumerateFiles("Setup", "*.*"))
+            {
+                string extension = Path.GetExtension(file).ToLowerInvariant();
+
+                string[] keepExtensions = new string[]
+                {
+                    ".ini",
+                    ".dll",
+                    ".exe",
+                    ".config"
+                };
+
+                bool copyFile = false;
+
+                foreach (string keepExtension in keepExtensions)
+                {
+                    if (string.Equals(extension, keepExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        copyFile = true;
+                        break;
+                    }
+                }
+
+                if (!copyFile)
+                {
+                    continue;
+                }
+
+                string fileName = Path.GetFileName(file);
+                string setupFile = Path.Combine("Setup", fileName);
+                string xwaFile = Path.Combine("..", fileName);
+
+                Console.WriteLine(fileName);
+                File.Copy(setupFile, xwaFile, true);
             }
 
             Console.WriteLine();

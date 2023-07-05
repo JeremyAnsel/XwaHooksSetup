@@ -13,3 +13,8 @@ XwaHooksSetup runs on Windows 32/64 bits with the .NET framework 4.8.
 4) It will extract the hooks into a directory named "Setup".
 
 5) Copy the content of the "Setup" directory in your XWA install directory.
+
+# Auto updater
+
+To use the auto update feature, extract the tool in a subdirectory of the XWA directory.
+
