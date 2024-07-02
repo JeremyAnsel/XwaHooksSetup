@@ -461,6 +461,11 @@ namespace XwaHooksSetup
                 newHooksIni.CreateSectionIfNotExists(sectionKey);
                 XwaIniSection newSection = newHooksIni.Sections[sectionKey];
 
+                if (string.Equals(newSection.GetKeyValueInLines("OverrideSettings"), "1", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var keys = section.GetSettingKeys();
 
                 foreach (string key in keys)
