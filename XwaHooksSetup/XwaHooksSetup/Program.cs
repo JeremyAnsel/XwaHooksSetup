@@ -404,6 +404,7 @@ namespace XwaHooksSetup
                                 configFile.WriteText("\n");
                             }
                             else if (entry.Name.EndsWith(".dll")
+                                || entry.Name.EndsWith(".pdb")
                                 || entry.Name.EndsWith(".exe")
                                 || entry.Name.EndsWith(".exe.config"))
                             {
@@ -490,6 +491,7 @@ namespace XwaHooksSetup
                 {
                     ".ini",
                     ".dll",
+                    ".pdb",
                     ".exe",
                     ".config"
                 };
